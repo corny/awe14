@@ -1,0 +1,172 @@
+#!/opt/local/bin/ruby
+require 'rubygems'
+#!/opt/local/bin/ruby1.9
+gem 'RedCloth', '~> 3.0'
+require 'redcloth'
+require 'syntax/convertors/html'
+require 'coderay'
+require 'uv' #ultraviolet
+parms = {}
+slides = []
+
+# Encoding.default_external = "UTF-8" # wake up, smell the coffee
+# Encoding.default_internal = "UTF-8" # wake up, smell the coffee
+
+ARGF.each do |l|
+  case l
+  when /^=#/
+  when /^=\((\w*)/
+    if slides.last
+      codeclass = %Q{ class="#$1"} if $1.size != 0
+      slides.last.last << "<pre><code#{codeclass}>"
+    end
+  when /^=\)/
+    if slides.last
+      slides.last.last << "</code></pre>\n"
+    end
+  when /^=<(.*)/
+    if slides.last
+      st = $1.strip
+      opt = []
+      st.scan(/(>)|(w(\d+)%)|(s?(\d+)%)/).each { |r, x, w, y, p|
+        if r
+          opt << "float: right"
+        elsif p
+          opt << "font-size: #{p}%"
+        elsif w
+          opt << "width: #{w}%"
+        end
+      }
+      slides.last.last << "\n<div style='#{opt.join("; ")}'>\n\n";
+    end
+  when /^=>/
+    if slides.last
+      slides.last.last << "\n</div>\n\n"
+    end
+  when /^=\//
+    slides.last[0] =~ /^(.*?)( \((\d+)\))?$/
+#    $stderr.puts "bla: #{$1} -- #{$2} -- #{$3} --"
+    unless nn = $3
+      slides.last[0] << " (1)"
+      nn = 1
+    end
+    slides << ["#{$1} (#{nn.succ})", ""]
+  when /^=slide\.(.*)/
+    slides << [$1.strip, ""]
+  when /^=handout\.(.*)/
+    slides.last << "";
+  when /^=(\w+).(.*)/
+    parms[$1] = $2.strip
+  when /^==/
+    l[0,1] = ''
+    if slides.last
+      slides.last.last << l
+    end
+  else
+    if slides.last
+      slides.last.last << l
+    end
+  end
+end
+
+parms["f1"] ||= "#{parms["author"]} #{parms["presdate"]}"
+parms["f2"] ||= parms["title"]
+
+puts <<HTMLEND
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><!--*- nxml -*-->
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <!-- $Id: mks5,v 1.4 2012/01/24 20:41:43 cabo Exp cabo $ -->
+  <!-- #{parms["revision"]} -->
+<head>
+                            <title>#{parms["title"]}</title>
+<!-- metadata -->
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<meta name="generator" content="S5" />
+<meta name="version" content="S5 1.1" />
+<meta name="presdate" content="#{parms["presdate"]}" />
+<meta name="author" content="#{parms["author"]}" />
+<meta name="company" content="#{parms["company"]}" />
+<!-- configuration parameters -->
+<meta name="defaultView" content="slideshow" />
+<meta name="controlVis" content="hidden" />
+<!-- style sheet links -->
+<link rel="stylesheet" href="ui/default/slides.css" type="text/css" media="projection" id="slideProj" />
+<link rel="stylesheet" href="ui/default/outline.css" type="text/css" media="screen" id="outlineStyle" />
+<link rel="stylesheet" href="ui/default/print.css" type="text/css" media="print" id="slidePrint" />
+<link rel="stylesheet" href="ui/default/opera.css" type="text/css" media="projection" id="operaFix" />
+<link rel="stylesheet" href="ui/default/ruby.css" type="text/css" />
+<link rel="stylesheet" href="ui/default/xml.css" type="text/css" />
+<link rel="stylesheet" href="ui/default/eiffel.css" type="text/css" />
+<!-- S5 JS -->
+<script src="ui/default/slides.js" type="text/javascript"></script>
+<!-- Fuer s6 aus Kommentar herausnehmen:
+<script src="ui/default/s6.js" type="text/javascript"></script>
+ -->
+</head>
+<body>
+
+<div class="layout">
+<div id="controls"><!-- DO NOT EDIT --></div>
+<div id="currentSlide"><!-- DO NOT EDIT --></div>
+<div id="header"></div>
+<div id="footer">
+#{RedCloth.new("h1. #{parms["f1"]}").to_html}
+#{RedCloth.new("h2. #{parms["f2"]}").to_html}
+</div>
+
+</div>
+
+
+<div class="presentation">
+HTMLEND
+
+ss = ''
+
+slides.each do |s|
+  ss << <<HTMLEND
+<div class="slide">
+
+h1. #{s[0]}\n
+
+#{s[1]}
+
+HTMLEND
+  if s[2]
+    ss << <<HTMLEND
+<div class="handout">
+
+#{s[2]}
+
+</div>
+HTMLEND
+  end
+  ss << <<HTMLEND
+</div>
+HTMLEND
+end
+
+ss.gsub!(%r{(<pre>)?(<code class="(\w+)">)(.*?)(</code>)(</pre>)?}m) do
+  pi, ci, lang, code, co, po = $1, $2, $3, $4, $5, $6
+  case lang
+  when "ruby", "xml"
+    convertor = Syntax::Convertors::HTML.for_syntax lang
+    code = convertor.convert(code, false) # false = no <pre> wrapping
+  when "haml"
+    code = Uv.parse(code, "xhtml", lang, false, "eiffel")
+    pi = ''; po = ''
+  else
+    lang.sub!(/^Z/, '')
+    code = CodeRay.scan(code, lang.intern).span
+  end
+  "#{pi}#{ci}<notextile>#{code}</notextile>#{co}#{po}"
+end
+
+puts RedCloth.new(ss).to_html
+
+puts <<HTMLEND
+<!-- ================================================================== -->
+</div>
+
+</body>
+</html>
+HTMLEND
