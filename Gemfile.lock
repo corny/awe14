@@ -1,0 +1,19 @@
+GEM
+  remote: https://rubygems.org/
+  specs:
+    RedCloth (3.0.4)
+    coderay (1.1.0)
+    spox-plist (3.0.1)
+    spox-textpow (0.10.3)
+      spox-plist
+    uv (0.0.7.5)
+      spox-plist
+      spox-textpow
+
+PLATFORMS
+  ruby
+
+DEPENDENCIES
+  RedCloth (~> 3.0)
+  coderay
+  uv
