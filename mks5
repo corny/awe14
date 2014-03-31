@@ -1,16 +1,13 @@
-#!/opt/local/bin/ruby
-require 'rubygems'
-#!/opt/local/bin/ruby1.9
-gem 'RedCloth', '~> 3.0'
+#!/usr/bin/env ruby
+require 'bundler'
+
+Bundler.require
+
 require 'redcloth'
-require 'syntax/convertors/html'
 require 'coderay'
 require 'uv' #ultraviolet
 parms = {}
 slides = []
-
-# Encoding.default_external = "UTF-8" # wake up, smell the coffee
-# Encoding.default_internal = "UTF-8" # wake up, smell the coffee
 
 ARGF.each do |l|
   case l

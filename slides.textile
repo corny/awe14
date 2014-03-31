@@ -1,0 +1,141 @@
+=title. Ruby On Rails: Best Practices
+=author. Julian Kornberger
+=presdate. 2014-04-01
+=company. Digineo GmbH
+=revision. $Id: nö? $
+
+=slide. RoR: Best Practices
+
+h2. Digineo GmbH 2014-04-01
+
+h3. Julian Kornberger
+
+h4. jk@digineo.de
+
+=slide.  Gemfile
+
+Versionsnummern angeben:
+
+    gem 'rails', '~> 4.0.4'
+
+Github-Repository referenzieren:
+
+    gem 'bootstrap-sass', github: 'twbs/bootstrap-sass', branch: 'testing'
+
+Kommentare für weniger bekannte Gems.
+
+    \# Öffnet automatisch erzeugte E-Mails (delivery_method setzen!)
+    gem 'letter_opener', group: [:development]
+
+=slide.  User Interface
+
+DOs:
+
+* Twitter Bootstrap als CSS-Framwork (bootstrap-sass)
+* Font Awesome für Icons (font-awesome-rails)
+* SimpleForm für Formulare (simple-form)
+** kompliziert
+* Kaminari für Pagination (kaminari)
+
+DONTs:
+
+* jQuery UI verwenden
+* less-rails benutzen (wenn sass-rails benutzt wird)
+
+=slide. Migrations / Seeds
+
+Migrations nachträglich ändern ist OK (in Entwicklungsphase)
+
+Alles was für eine Test-Installation notwendig ist in die Seeds:
+
+    \# db/seeds.rb
+    user = User.create email: 'admin@example.com', password: 'foobar12'
+    user.projects.create! name: "AWE14"
+    ...
+
+Datenbank zurücksetzen mit:
+
+    rake db:migrate:reset && rake db:seed
+
+Setup-Prozess in README dokumentieren
+
+=slide. SQL Constraints (1/2)
+
+NULL Constraints
+
+    create_table :users do 
+      t.string :email, null: false
+      t.timestamps null: false
+    end
+
+UNIQUE Constraints
+
+    add_index :users, :email, unique: true
+    add_index :projects_users, [:project_id, :user_id], unique: true
+
+=slide. SQL Constraints (2/2)
+
+FOREIGN KEY Constraints für referenzielle Integrität (Gem: foreigner):
+
+NO ACTION
+
+    add_foreign_key :comments, :posts
+    
+SET NULL
+
+    add_foreign_key :comments, :posts, dependent: :set_null
+
+CASCADE
+
+    add_foreign_key :comments, :posts, dependent: :nullify
+=slide. Background Jobs
+
+HTTP-Request sollte innerhalb 1 Sekunde beantwortet sein.
+Aufwendige Arbeiten mit Sidekiq im Hintergrund durchführen.
+
+    class HardWorker
+      include Sidekiq::Worker
+      def perform(name, count)
+        puts 'Doing hard work'
+      end
+    end            
+
+Job erstellen:
+
+    HardWorker.perform_async('bob', 5)
+
+Starten:
+
+    bundle exec sidekiq
+
+=slide. Precompiler
+
+* HAML statt ERB (html2haml)
+* SASS statt CSS (css2sass)
+* CoffeeScript statt JavaScript (js2coffee.org)
+
+=slide. Testing
+
+* RSpec (beta2)
+* FactoryGirl (factory_girl_rails)
+* ffaker für Testdaten (zufällig!)
+* Stubbing mit rspeck-mocks / VCR+Webmock
+* Debugger: byebug (pry-byebug und pry-rails)
+* Capybara mit Poltergeist
+* Cucumber
+* SimpleCov
+
+=slide. Services
+
+Tools für Entwurf und SCRUM:
+
+* Mockingbird
+* Pivotal Tracker
+
+CI / Code-Qualität
+
+* Continuous Integration: Travis CI (travis-ci.com)
+* Performance Monitoring: NewRelic RPM (newrelic.com)
+* Code-Analyse: Code Climate (codeclimate.com)
+* Test-Coverage: Coveralls (coveralls.com)
+* Dependency Monitoring: Gemnasium (gemansium.com)
