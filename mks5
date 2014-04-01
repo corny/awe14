@@ -146,8 +146,7 @@ ss.gsub!(%r{(<pre>)?(<code class="(\w+)">)(.*?)(</code>)(</pre>)?}m) do
   pi, ci, lang, code, co, po = $1, $2, $3, $4, $5, $6
   case lang
   when "ruby", "xml"
-    convertor = Syntax::Convertors::HTML.for_syntax lang
-    code = convertor.convert(code, false) # false = no <pre> wrapping
+    code = CodeRay.scan(code, lang).div
   when "haml"
     code = Uv.parse(code, "xhtml", lang, false, "eiffel")
     pi = ''; po = ''
@@ -155,7 +154,7 @@ ss.gsub!(%r{(<pre>)?(<code class="(\w+)">)(.*?)(</code>)(</pre>)?}m) do
     lang.sub!(/^Z/, '')
     code = CodeRay.scan(code, lang.intern).span
   end
-  "#{pi}#{ci}<notextile>#{code}</notextile>#{co}#{po}"
+  "<notextile>#{code}</notextile>"
 end
 
 puts RedCloth.new(ss).to_html

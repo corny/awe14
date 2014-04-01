@@ -16,25 +16,33 @@ h4. jk@digineo.de
 
 Versionsnummern angeben:
 
-    gem 'rails', '~> 4.0.4'
+=(ruby
+gem 'rails', '>= 4.0.4', '< 4.1'
+gem 'rails', '~> 4.0.4' # Twiddle Wakka (aka Pessimistic Operator)
+=)
 
-Github-Repository referenzieren:
+Repositories referenzieren:
 
-    gem 'bootstrap-sass', github: 'twbs/bootstrap-sass', branch: 'testing'
+=(ruby
+gem 'bootstrap-sass', git: 'git://git.twitter.com/bootstrap.git'
+gem 'bootstrap-sass', github: 'twbs/bootstrap-sass', branch: 'testing'
+=)
 
 Kommentare für weniger bekannte Gems.
 
-    \# Öffnet automatisch erzeugte E-Mails (delivery_method setzen!)
-    gem 'letter_opener', group: [:development]
+=(ruby
+# Öffnet automatisch erzeugte E-Mails (delivery_method setzen!)
+gem 'letter_opener', group: [:development]
+=)
 
 =slide.  User Interface
 
 DOs:
 
-* Twitter Bootstrap als CSS-Framwork (bootstrap-sass)
+* Twitter Bootstrap als CSS-Framwork (bootstrap-sass, bootsnipp.com)
 * Font Awesome für Icons (font-awesome-rails)
-* SimpleForm für Formulare (simple-form)
-** kompliziert
+* SimpleForm für Formulare (simple_form)
+** Setup für Bootstrap kompliziert
 * Kaminari für Pagination (kaminari)
 
 DONTs:
@@ -44,18 +52,21 @@ DONTs:
 
 =slide. Migrations / Seeds
 
-Migrations nachträglich ändern ist OK (in Entwicklungsphase)
+Migrations während der Entwicklungsphase nachträglich ändern.
+Datenbank zurücksetzen mit:
+
+=(
+rake db:migrate:reset && rake db:seed
+=)
 
 Alles was für eine Test-Installation notwendig ist in die Seeds:
 
-    \# db/seeds.rb
-    user = User.create email: 'admin@example.com', password: 'foobar12'
-    user.projects.create! name: "AWE14"
-    ...
-
-Datenbank zurücksetzen mit:
-
-    rake db:migrate:reset && rake db:seed
+=(ruby
+# db/seeds.rb
+user = User.create email: 'admin@example.com', password: 'foobar12'
+user.projects.create! name: "AWE14"
+...
+=)
 
 Setup-Prozess in README dokumentieren
 
@@ -63,15 +74,19 @@ Setup-Prozess in README dokumentieren
 
 NULL Constraints
 
-    create_table :users do 
-      t.string :email, null: false
-      t.timestamps null: false
-    end
+=(ruby
+create_table :users do 
+  t.string :email, null: false
+  t.timestamps null: false
+end
+=)
 
 UNIQUE Constraints
 
-    add_index :users, :email, unique: true
-    add_index :projects_users, [:project_id, :user_id], unique: true
+=(ruby
+add_index :users, :email, unique: true
+add_index :projects_users, [:project_id, :user_id], unique: true
+=)
 
 =slide. SQL Constraints (2/2)
 
@@ -79,36 +94,82 @@ FOREIGN KEY Constraints für referenzielle Integrität (Gem: foreigner):
 
 NO ACTION
 
-    add_foreign_key :comments, :posts
+=(ruby
+add_foreign_key :comments, :posts
+=)
     
 SET NULL
 
-    add_foreign_key :comments, :posts, dependent: :set_null
+=(ruby
+add_foreign_key :comments, :posts, dependent: :nullify
+=)
 
 CASCADE
 
-    add_foreign_key :comments, :posts, dependent: :nullify
-=slide. Background Jobs
+=(ruby
+add_foreign_key :comments, :posts, dependent: :delete
+=)
 
-HTTP-Request sollte innerhalb 1 Sekunde beantwortet sein.
-Aufwendige Arbeiten mit Sidekiq im Hintergrund durchführen.
+=slide. Background Jobs (1/3)
 
-    class HardWorker
-      include Sidekiq::Worker
-      def perform(name, count)
-        puts 'Doing hard work'
-      end
-    end            
+Problem:
+
+* HTTP-Request sollte innerhalb 1 Sek. beantwortet werden (besser < 100ms)
+* Sonst: Schlechte User-Experience, Anfällig für DOS
+
+Lösung:
+
+* Asynchrone Ausführung im Hintergrund.
+* Status-Updates per Refresh / AJAX-Polling / Server Side Events
+
+=slide. Background Jobs (2/3)
+
+Way to Go: Sidekiq + Redis
+
+* Multithreading, mehrere Queues
+* Job scheduling, Job retry
+
+=(ruby
+# Gemfile
+gem 'sidekiq', '~> 3.0'
+gem 'sidekiq-failures'
+gem 'sinatra', require: false, group: [:development, :production]
+=)
+.
+=(ruby
+# routes.rb
+require 'sidekiq/web' if defined? Sidekiq
+
+mount Sidekiq::Web => 'admin/sidekiq'
+=)
+
+=slide. Background Jobs (3/3)
+
+Worker-Klasse
+
+=(ruby
+class HardWorker
+  include Sidekiq::Worker
+  def perform(name, count)
+    puts 'Doing hard work'
+  end
+end
+=)
 
 Job erstellen:
 
-    HardWorker.perform_async('bob', 5)
+=(ruby
+HardWorker.perform_async('bob', 5)
+=)
 
 Starten:
 
     bundle exec sidekiq
 
+
 =slide. Precompiler
+
+Steigern der Produktivität mit:
 
 * HAML statt ERB (html2haml)
 * SASS statt CSS (css2sass)
@@ -121,21 +182,81 @@ Starten:
 * ffaker für Testdaten (zufällig!)
 * Stubbing mit rspeck-mocks / VCR+Webmock
 * Debugger: byebug (pry-byebug und pry-rails)
-* Capybara mit Poltergeist
-* Cucumber
+* Capybara mit Poltergeist, Launchy
 * SimpleCov
+* Cucumber
+
+=slide. Sonstige Gems
+
+* devise für Authentifzierung
+* cancan für Autorisierung
+* carrier_wave für Datei-Uploads (nur Attachments)
+* annotate
+* strip_attributes
+* letter_opener
+* quiet_assets
+* exception_notfication
+
+Gem gesucht? -> www.ruby-toolbox.com
+
+=slide. Seperation of Concerns
+
+Verschiedene Elemente der Aufgabe sollten möglichst in verschiedenen Elementen der Lösung repräsentiert werden.
+Also: Gleiche Elemente zusammenfassen
+
+* ApplicationHelper löschen
+* ApplicationController meiden
+* application.{js,css} nur für require
+* ActiveSupport::Concern verwenden
+
+=slide. ActiveSupport::Concern
+
+=(ruby
+class User < ActiveRecord::Base
+  include User::Validations
+end
+
+# app/models/concerns/user/validations.rb
+module User::Validations
+  extend ActiveSupport::Concern
+
+  included do
+    validates :name, presence: true
+    validates :card_number, presence: true, if: :card_required?
+  end
+
+  def card_required?
+    # ...
+  end
+end
+=)
+
 
 =slide. Services
 
 Tools für Entwurf und SCRUM:
 
-* Mockingbird
-* Pivotal Tracker
+* Mockingbird für Mockups (gomockingbird.com)
+* Pivotal Tracker (pivotaltracker.com)
 
-CI / Code-Qualität
+CI / Code-Analyse
 
 * Continuous Integration: Travis CI (travis-ci.com)
 * Performance Monitoring: NewRelic RPM (newrelic.com)
 * Code-Analyse: Code Climate (codeclimate.com)
 * Test-Coverage: Coveralls (coveralls.com)
-* Dependency Monitoring: Gemnasium (gemansium.com)
+
+
+=slide. Arbeitsumgebung
+
+Ergonomie
+
+* optimal: sehr großer Bildschirm auf Augenhöhe
+** am besten 2 Stück
+* eine echte Maus (für nicht-MacBooks)
+
+Vernünftiger Editor!
+
+=slide. Viel Erfolg!
+
+Noch Fragen?

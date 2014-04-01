@@ -41,7 +41,7 @@ div.long {font-size: 0.75em;}
 .slide h1 {position: absolute; top: 0.7em; z-index: 1;
   margin: 0; white-space: nowrap;
   font: bold 150%/1em Helvetica, sans-serif; text-transform: capitalize;
-  color: #DDE; background: #005;}
+  color: #FFF; background: #005;}
 .slide h3 {font-size: 130%;}
 h1 abbr {font-variant: small-caps;}
 
